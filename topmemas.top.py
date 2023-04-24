@@ -10,10 +10,26 @@ from tqdm import trange
 
 bot = telebot.TeleBot('YOUR_TOKEN')
 
+logger = logging.getLogger('topmemas')
+logger.setLevel(logging.INFO)
+
+sh = logging.StreamHandler()
+sh.setLevel(logging.INFO)
+
+fh = logging.FileHandler('topmemasLOG.txt')
+fh.setLevel(logging.INFO)
+
+formatter = logging.Formatter('%(asctime)s - %(message)s')
+
+sh.setFormatter(formatter)
+fh.setFormatter(formatter)
+
+logger.addHandler(sh)
+logger.addHandler(fh)
+
 def get_html(url):
     session = requests_html.HTMLSession()
     response = session.get(url)
-    # Выполняем JavaScript на странице и прокручиваем ее вниз 10 раз
     response.html.render(scrolldown=10)
     return response.html
 
@@ -23,12 +39,9 @@ def get_images(html):
     for div in divs:
         img = div.find('img', first=True)
         if img:
-            # Получаем ссылку на картинку из атрибута src
             src = img.attrs['src']
-            # Проверяем, что ссылка полная, иначе добавляем домен сайта к ней
             if not src.startswith("https://"):
                 src = "https://topmemas.top/" + src
-            # Добавляем ссылку на картинку и ее описание в словарь images
             try:
                 images[src] = img.attrs['title']
             except KeyError:
@@ -38,11 +51,9 @@ def get_images(html):
 def send_images(images):
     for url, caption in images.items():
         bot.send_photo('@YOUR_CHANNEL', photo=url, caption=caption)
-        logging.info(f'Sent image {url} to @YOUR_CHANNEL')
+        logger.info(f'Sent image {url} to @YOUR_CHANNEL')
         save_last_images({url: caption})
-        # делаем паузу в 60 секунд
         for i in trange(60, 0, -1):
-            # делаем паузу в 1 секунду
             time.sleep(1)
 
 def save_last_images(images):
@@ -70,23 +81,19 @@ def signal_handler(signal, frame):
     print('You pressed Ctrl+C!')
     sys.exit(0)
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
-
 signal.signal(signal.SIGINT, signal_handler)
 
 url = 'https://topmemas.top/'
 
 while True:
     html = get_html(url)
-    logging.info(f'Got HTML from {url}')
+    logger.info(f'Got HTML from {url}')
     images = get_images(html)
-    logging.info(f'Found {len(images)} images on the site')
+    logger.info(f'Found {len(images)} images on the site')
     new_images = check_new_images(images)
-    logging.info(f'Found {len(new_images)} new images to send')
+    logger.info(f'Found {len(new_images)} new images to send')
     if new_images:
         send_images(new_images)
-        logging.info(f'Sent {len(new_images)} images to @YOUR_CHANNEL')
-    # делаем паузу в 300 секунд
+        logger.info(f'Sent {len(new_images)} images to @YOUR_CHANNEL)
     for i in trange(300, 0, -1):
-        # делаем паузу в 1 секунду
         time.sleep(1)
